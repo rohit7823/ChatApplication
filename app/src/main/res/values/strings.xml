@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Chat Application</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="agora_app_id">d68d248ed2544b15856e8398edd4e0d2</string>
+    <string name="reconnecting">Network is reconnecting.</string>
+    <string name="account_offline">Account is offline.</string>
+    <string name="send_msg_failed">Message send failed.</string>
+    <string name="peer_offline">Peer is offline.</string>
+    <string name="message_cached">Message is saved.</string>
+    <string name="type_a_message">Type a message.</string>
+</resources>
