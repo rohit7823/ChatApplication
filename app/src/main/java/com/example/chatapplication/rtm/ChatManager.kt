@@ -7,17 +7,17 @@ import com.example.chatapplication.R
 import io.agora.rtm.*
 import java.util.ArrayList
 
-class ChatManager {
+class ChatManager constructor(private val context: Context) {
     private val TAG = ChatManager::class.java.simpleName
 
-    private var mContext: Context? = null
+    private var mContext: Context? = context
     private var mRtmClient: RtmClient? = null
     private var mSendMsgOptions: SendMessageOptions? = null
-    private val mListenerList: MutableList<RtmClientListener> = ArrayList<RtmClientListener>()
+    private val mListenerList: MutableList<RtmClientListener> = mutableListOf()
     private val mMessagePool: RtmMessagePool = RtmMessagePool()
 
     fun init() {
-        val appID = mContext!!.getString(R.string.agora_app_id)
+        val appID = mContext?.getString(R.string.agora_app_id)
         try {
             mRtmClient = RtmClient.createInstance(mContext, appID, object : RtmClientListener {
                 override fun onConnectionStateChanged(state: Int, reason: Int) {

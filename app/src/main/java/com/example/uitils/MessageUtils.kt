@@ -61,7 +61,7 @@ class MessageUtils {
             if (ret == -1) {
                 // account not exist new messagelistbean
                 //messageBean.setBackground(COLOR_ARRAY[RANDOM.nextInt(COLOR_ARRAY.size)])
-                val messageBeanList: MutableList<MessageBean> = ArrayList<MessageBean>()
+                val messageBeanList: MutableList<MessageBean> = mutableListOf()
                 messageBeanList.add(messageBean)
                 messageListBeanList.add(MessageListBean(account, messageBeanList))
             } else {

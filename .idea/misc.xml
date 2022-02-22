@@ -5,6 +5,7 @@
       <map>
         <entry key="..\:/AndroidStudioProjects/ChatApplication/app/src/main/res/drawable/reciver.xml" value="0.122" />
         <entry key="..\:/AndroidStudioProjects/ChatApplication/app/src/main/res/drawable/sender.xml" value="0.122" />
+        <entry key="..\:/AndroidStudioProjects/ChatApplication/app/src/main/res/layout/activity_main.xml" value="0.20416666666666666" />
         <entry key="..\:/AndroidStudioProjects/ChatApplication/app/src/main/res/layout/fragment_chat.xml" value="0.20416666666666666" />
         <entry key="..\:/AndroidStudioProjects/ChatApplication/app/src/main/res/layout/fragment_login.xml" value="0.20416666666666666" />
       </map>
