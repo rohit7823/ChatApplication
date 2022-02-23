@@ -9,4 +9,6 @@
     <string name="peer_offline">Peer is offline.</string>
     <string name="message_cached">Message is saved.</string>
     <string name="type_a_message">Type a message.</string>
+    <string name="cancel">Cancel</string>
+    <string name="give_access">Give Access</string>
 </resources>

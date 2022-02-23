@@ -27,7 +27,7 @@ class MessageUtils {
         const val INTENT_EXTRA_USER_ID = "userId"
         const val INTENT_EXTRA_TARGET_NAME = "targetName"
 
-        private val messageListBeanList: MutableList<MessageListBean> = ArrayList<MessageListBean>()
+        private val messageListBeanList: MutableList<MessageListBean> = mutableListOf()
         fun addMessageListBeanList(messageListBean: MessageListBean) {
             messageListBeanList.add(messageListBean)
         }

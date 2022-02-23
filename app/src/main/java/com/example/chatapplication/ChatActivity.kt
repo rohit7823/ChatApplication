@@ -1,6 +1,7 @@
 package com.example.chatapplication
 
-import android.inputmethodservice.Keyboard
+import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -13,46 +14,63 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
+import androidx.compose.material.MaterialTheme.colors
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color.Companion.Black
+import androidx.compose.ui.graphics.Color.Companion.Cyan
+import androidx.compose.ui.graphics.Color.Companion.Green
+import androidx.compose.ui.graphics.Color.Companion.LightGray
+import androidx.compose.ui.graphics.Color.Companion.Red
 import androidx.compose.ui.graphics.Color.Companion.White
+import androidx.compose.ui.graphics.Color.Companion.Yellow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContextCompat
+import androidx.documentfile.provider.DocumentFile
+import com.anggrayudi.storage.SimpleStorage
+import com.anggrayudi.storage.callback.StorageAccessCallback
+import com.anggrayudi.storage.file.StorageType
 import com.example.chatapplication.app.ChatApp
 import com.example.chatapplication.rtm.ChatManager
 import com.example.chatapplication.ui.theme.ChatApplicationTheme
 import com.example.models.MessageBean
+import com.example.models.MessageListBean
 import com.example.uitils.MessageUtils
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.dialog.MaterialDialogs
+import com.skydoves.landscapist.rememberDrawablePainter
 import io.agora.rtm.*
+import kotlinx.coroutines.NonCancellable.cancel
 
 
 const val TOKEN =
-    "006d68d248ed2544b15856e8398edd4e0d2IABaA2p9oh8XMGUme80PiPCq84uDaDVJbkewO+c/iOS5ObRc5oMAAAAAEAC9nMqLle0VYgEA6AOV7RVi"
+    "006d68d248ed2544b15856e8398edd4e0d2IACUpK4UYBIKJbMdZ/gXNXW3VO4ECP8gR6CbfXWUL2IpZ7Rc5oMAAAAAEACZ+YAUQ3wXYgEA6ANDfBdi"
 
 
 class ChatActivity : ComponentActivity() {
 
-
+    private val openStorage by lazy { SimpleStorage(this) }
     private lateinit var chatManager: ChatManager //by lazy { ChatManager() }
     private lateinit var rtmClient: RtmClient //by lazy { ChatManager().getRtmClient() }
     private lateinit var clientListener: RtmClientListener //by lazy { MyRtmClientListener() }
     private lateinit var messageListBean: MutableList<MessageBean> //by lazy { mutableListOf<MessageBean>() }
-    val mPeerId = "rohit"
+    private val generalMessageList = mutableStateListOf<MessageBean>()
+    val mPeerId = "rajdeep"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         doInitialWork()
         setContent {
             ChatApplicationTheme {
-                ScreenContent(messageList = messageListBean)
+                ScreenContent(messageList = generalMessageList)
             }
         }
     }
@@ -77,13 +95,27 @@ class ChatActivity : ComponentActivity() {
         chatHistory?.let {
             chatHistory.getMessageBeanList()?.let {
                 messageListBean.addAll(it)
+                generalMessageList.addAll(it)
             }
         }
+
+
+        // load offline messages since last chat with this peer.
+        // Then clear cached offline messages from message pool
+        // since they are already consumed.
+        val offlineMessageBean = MessageListBean(mPeerId, chatManager)
+        messageListBean.addAll(
+            offlineMessageBean.getMessageBeanList()?.toMutableList() ?: emptyList()
+        )
+        generalMessageList.addAll(
+            offlineMessageBean.getMessageBeanList()?.toMutableList() ?: emptyList()
+        )
+        chatManager.removeAllOfflineMessages(mPeerId)
     }
 
     private fun doLogin() {
         val mIsInChat = true
-        rtmClient.login(TOKEN, mPeerId, object : ResultCallback<Void?> {
+        rtmClient.login(TOKEN, "rohit", object : ResultCallback<Void?> {
             override fun onSuccess(responseInfo: Void?) {
                 /*Log.i(TAG, "login success")
                 runOnUiThread {
@@ -110,6 +142,13 @@ class ChatActivity : ComponentActivity() {
         override fun onConnectionStateChanged(state: Int, reason: Int) {
             runOnUiThread {
                 when (state) {
+                    RtmStatusCode.ConnectionState.CONNECTION_STATE_CONNECTING -> {
+                        Log.d("testing", "Connecting")
+                    }
+                    RtmStatusCode.ConnectionState.CONNECTION_STATE_CONNECTED -> {
+                        Log.d("testing", "Connected")
+
+                    }
                     RtmStatusCode.ConnectionState.CONNECTION_STATE_RECONNECTING -> {
                         showToast(
                             getString(R.string.reconnecting)
@@ -131,11 +170,11 @@ class ChatActivity : ComponentActivity() {
                 if (peerId == mPeerId) {
                     val messageBean = MessageBean().setMessageBean(peerId, message, false)
                     //messageBean.setBackground(getMessageColor(peerId))
-                    messageListBean.add(messageBean)
+                    addToGeneralMessageList(messageBean)
                     /*mMessageAdapter.notifyItemRangeChanged(mMessageBeanList.size, 1)
                     mRecyclerView.scrollToPosition(mMessageBeanList.size - 1)*/
                 } else {
-                    MessageUtils.addMessageBean(peerId, message)
+                    //MessageUtils.addMessageBean(peerId, message)
                 }
             }
         }
@@ -174,6 +213,12 @@ class ChatActivity : ComponentActivity() {
         override fun onPeersOnlineStatusChanged(map: Map<String, Int>) {
             Log.d("RtmClientListener", "onPeersOnlineStatusChanged")
         }
+    }
+
+    private fun addToGeneralMessageList(messageBean: MessageBean) {
+        messageListBean.add(messageBean)
+        generalMessageList.add(messageBean)
+
     }
 
 
@@ -222,9 +267,8 @@ class ChatActivity : ComponentActivity() {
 
     @Composable
     fun ScreenContent(
-        messageList: MutableList<MessageBean>,
+        messageList: SnapshotStateList<MessageBean>,
     ) {
-
         Surface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
                 ToolbarContent()
@@ -250,9 +294,6 @@ class ChatActivity : ComponentActivity() {
     @Composable
     fun PreviewContent() {
         ChatApplicationTheme {
-            ScreenContent(
-                messageList = messageListBean
-            )
         }
     }
 
@@ -262,7 +303,7 @@ class ChatActivity : ComponentActivity() {
         Row(
             Modifier
                 .fillMaxWidth()
-                .wrapContentHeight()
+                .height(50.dp)
         ) {
             RowContent(messageBean)
         }
@@ -270,45 +311,56 @@ class ChatActivity : ComponentActivity() {
 
     @Composable
     fun RowContent(message: MessageBean) {
-        Surface {
-            if (!message.beSelf) {
-                Column(Modifier.wrapContentWidth(), horizontalAlignment = Alignment.Start) {
-                    Image(
-                        painter = painterResource(id = R.drawable.reciver),
-                        null,
-                        modifier = Modifier.wrapContentSize()
-                    )
+        if (!message.beSelf) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp, 0.dp, 0.dp, 0.dp),
+                horizontalArrangement = Arrangement.Start
+            ) {
+                Card(modifier = Modifier.wrapContentSize()) {
                     Text(
+                        modifier = Modifier
+                            .wrapContentSize()
+                            .background(Cyan),
                         text = message.message?.text ?: "",
                         textAlign = TextAlign.Justify,
                         color = Black
                     )
                 }
-            } else {
-                Column(Modifier.wrapContentWidth(), horizontalAlignment = Alignment.End) {
-                    Image(
-                        painter = painterResource(id = R.drawable.sender),
-                        null,
-                        modifier = Modifier.wrapContentSize()
-                    )
+            }
+
+        } else {
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .padding(0.dp, 0.dp, 10.dp, 0.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Card(modifier = Modifier.wrapContentSize()) {
                     Text(
+                        modifier = Modifier
+                            .wrapContentSize()
+                            .background(LightGray),
                         text = message.message?.text ?: "",
                         textAlign = TextAlign.Justify,
                         color = White
                     )
                 }
             }
+
         }
+
     }
 
 
     private fun sendMessage(msg: String) {
 
-        val newMessage = rtmClient?.createMessage()
+        val newMessage = rtmClient.createMessage()
         newMessage?.text = msg
 
         val messageBean = MessageBean(account = mPeerId, message = newMessage, beSelf = true)
-        messageListBean.add(messageBean)
+        addToGeneralMessageList(messageBean)
 
         newMessage?.let {
             sendPeerMessage(it)
@@ -336,7 +388,10 @@ class ChatActivity : ComponentActivity() {
                     .width(30.dp)
             )
             Text(
-                text = "Dr. Victor Le Roy", Modifier.wrapContentSize(), color = Black, fontSize = 25.sp
+                text = "Dr. Victor Le Roy",
+                Modifier.wrapContentSize(),
+                color = Black,
+                fontSize = 25.sp
             )
             Image(
                 painter = painterResource(id = R.drawable.dummy_doc),
@@ -356,13 +411,32 @@ class ChatActivity : ComponentActivity() {
             mutableStateOf("")
         }
 
-        Row(Modifier.fillMaxWidth().padding(0.dp, 8.dp), horizontalArrangement = Arrangement.SpaceEvenly,) {
+        var color by remember {
+            mutableStateOf(Red)
+        }
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(0.dp, 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
             FloatingActionButton(
-                onClick = { },
-                backgroundColor = androidx.compose.ui.graphics.Color.Red,
+                onClick = {
+                    color = openFileChoosingOptions(color)
+                },
+                backgroundColor = color,
                 modifier = Modifier.wrapContentSize()
             ) {
-                Icon(painter = painterResource(id = R.drawable.ic_add_24), contentDescription = null)
+                Icon(
+                    painter = if (color == Red) {
+                        painterResource(id = R.drawable.ic_add_24)
+                    } else {
+                        painterResource(id = R.drawable.ic_close)
+                    },
+
+                    contentDescription = null
+                )
             }
             TextField(
                 value = currentText,
@@ -391,6 +465,56 @@ class ChatActivity : ComponentActivity() {
                 ),
             )
         }
+    }
+
+    private fun openFileChoosingOptions(color: androidx.compose.ui.graphics.Color): androidx.compose.ui.graphics.Color {
+        if (color == Red) {
+            askAllStoragePermission()
+            return LightGray
+        }
+        return Red
+    }
+
+    private fun askAllStoragePermission() {
+        openStorage.storageAccessCallback = object : StorageAccessCallback {
+            override fun onExpectedStorageNotSelected(
+                requestCode: Int,
+                selectedFolder: DocumentFile,
+                selectedStorageType: StorageType,
+                expectedBasePath: String,
+                expectedStorageType: StorageType
+            ) {
+
+            }
+
+            override fun onRootPathNotSelected(
+                requestCode: Int,
+                rootPath: String,
+                uri: Uri,
+                selectedStorageType: StorageType,
+                expectedStorageType: StorageType
+            ) {
+
+                MaterialAlertDialogBuilder(this@ChatActivity)
+                    .setMessage("Please select $rootPath")
+                    .setNegativeButton(R.string.cancel, null)
+                    .setPositiveButton(R.string.give_access, null)
+            }
+
+            override fun onRootPathPermissionGranted(requestCode: Int, root: DocumentFile) {
+                TODO("Not yet implemented")
+            }
+
+            override fun onStoragePermissionDenied(requestCode: Int) {
+                TODO("Not yet implemented")
+            }
+
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
     }
 
 }
