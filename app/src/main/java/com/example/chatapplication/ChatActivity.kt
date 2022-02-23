@@ -3,6 +3,7 @@ package com.example.chatapplication
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.documentfile.provider.DocumentFile
+import com.afollestad.materialdialogs.MaterialDialog
 import com.anggrayudi.storage.SimpleStorage
 import com.anggrayudi.storage.callback.StorageAccessCallback
 import com.anggrayudi.storage.file.StorageType
@@ -68,6 +70,7 @@ class ChatActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         doInitialWork()
+
         setContent {
             ChatApplicationTheme {
                 ScreenContent(messageList = generalMessageList)
@@ -476,6 +479,7 @@ class ChatActivity : ComponentActivity() {
     }
 
     private fun askAllStoragePermission() {
+
         openStorage.storageAccessCallback = object : StorageAccessCallback {
             override fun onExpectedStorageNotSelected(
                 requestCode: Int,
@@ -494,11 +498,16 @@ class ChatActivity : ComponentActivity() {
                 selectedStorageType: StorageType,
                 expectedStorageType: StorageType
             ) {
+                MaterialDialog(this@ChatActivity)
+                    .message(text = "Please select $rootPath")
+                    .negativeButton(R.string.cancel)
+                    .positiveButton {
+                        val initialRoot = if(expectedStorageType.isExpected(selectedStorageType)) {
+                            selectedStorageType
+                        }else expectedStorageType
+                        openStorage.requestStorageAccess(openStorage.requestCodeStorageAccess, initialRoot, expectedStorageType)
+                    }.show()
 
-                MaterialAlertDialogBuilder(this@ChatActivity)
-                    .setMessage("Please select $rootPath")
-                    .setNegativeButton(R.string.cancel, null)
-                    .setPositiveButton(R.string.give_access, null)
             }
 
             override fun onRootPathPermissionGranted(requestCode: Int, root: DocumentFile) {
@@ -510,6 +519,16 @@ class ChatActivity : ComponentActivity() {
             }
 
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle, outPersistentState: PersistableBundle) {
+        openStorage.onSaveInstanceState(outState)
+        super.onSaveInstanceState(outState, outPersistentState)
+    }
+
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)
+        openStorage.onRestoreInstanceState(savedInstanceState)
     }
 
     override fun onDestroy() {
